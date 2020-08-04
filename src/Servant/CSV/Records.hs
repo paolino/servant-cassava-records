@@ -91,6 +91,7 @@ data L (op :: Op) f o (a :: [*]) where
   E :: L 'NoOp f o '[]
 
 deriving instance Eq (L op I o a)
+
 deriving instance Show o => Show (L op I o a)
 
 --------------------- rendering ---------------------------
@@ -217,6 +218,15 @@ type MimeC l u o op = (Index l ~ o, Products l ~ u, GetLRT l, PutOpOf u ~ op)
 
 instance MimeC l u o op => MimeUnrender (CSV l 'Querying) (EncodingWith l [L ('UpdateOp op) I o u]) where
   mimeUnrender (getLRT . proxyL -> lrt) x = EncodingWith @l <$> mimeUnrender' lrt x
+
+instance MimeC l u o op => MimeUnrender (CSV l 'Putting) (EncodingWith l [L op I o u]) where
+  mimeUnrender (unT . getLRT . proxyL -> lrt) x = EncodingWith @l <$> mimeUnrender' lrt x
+
+instance MimeC l u o op => MimeUnrender (CSV l 'Updating) (EncodingWith l [L ('UpdateOp op) I o u]) where
+  mimeUnrender (getLRT . proxyL -> lrt) x = EncodingWith @l <$> mimeUnrender' lrt x
+
+instance MimeC l u o op => MimeUnrender (CSV l 'Deleting) (EncodingWith l [L DeleteOp I o '[]]) where
+  mimeUnrender (getIndexOp . getLRT . proxyL -> lrt) x = EncodingWith @l <$> mimeUnrender' lrt x
 
 instance MimeC l u o op => MimeRender (CSV l 'Querying) (EncodingWith l [L ('UpdateOp op) I o u]) where
   mimeRender (getLRT . proxyL -> lrt) = mimeRender' lrt . getEncoding

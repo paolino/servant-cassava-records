@@ -35,6 +35,9 @@ dependencies:
 - wai
 - warp
 - network-simple
+- stm
+- lens 
+- containers
 
 library:
   source-dirs: src
