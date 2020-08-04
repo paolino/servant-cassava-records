@@ -29,6 +29,12 @@ dependencies:
 - http-media
 - hspec
 - do-list
+- servant-server
+- servant-client
+- http-client
+- wai
+- warp
+- network-simple
 
 library:
   source-dirs: src

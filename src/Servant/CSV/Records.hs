@@ -87,10 +87,11 @@ data L (op :: Op) f o (a :: [*]) where
     , unT :: L op f o b
     } ->
     L ('UpdateOp op) f o b
-  L :: (Eq a, IsRecord a) => f a -> L op f o b -> L ('PutOp op) f o (a : b)
+  L :: (Eq a, IsRecord a, Show a) => f a -> L op f o b -> L ('PutOp op) f o (a : b)
   E :: L 'NoOp f o '[]
 
 deriving instance Eq (L op I o a)
+deriving instance Show o => Show (L op I o a)
 
 --------------------- rendering ---------------------------
 
@@ -143,12 +144,12 @@ recordColumns (T f rest) = rtColumn f : recordColumns rest
 --------------   L handy composition operators -----------------------
 
 -- | L like operator grouping right
-(++:) :: (Eq a, IsRecord a) => f a -> L op f o b -> L ('PutOp op) f o (a : b)
+(++:) :: (Eq a, IsRecord a, Show a) => f a -> L op f o b -> L ('PutOp op) f o (a : b)
 (++:) = L
 
 -- | shortcut to compose last 2 elements
 (++^)
-  :: (IsRecord a1, Eq a1, IsRecord a2, Eq a2)
+  :: (IsRecord a1, Eq a1, IsRecord a2, Eq a2, Show a1, Show a2)
   => f a2
   -> f a1
   -> L ('PutOp ('PutOp 'NoOp)) f o '[a2, a1]
@@ -217,6 +218,9 @@ type MimeC l u o op = (Index l ~ o, Products l ~ u, GetLRT l, PutOpOf u ~ op)
 instance MimeC l u o op => MimeUnrender (CSV l 'Querying) (EncodingWith l [L ('UpdateOp op) I o u]) where
   mimeUnrender (getLRT . proxyL -> lrt) x = EncodingWith @l <$> mimeUnrender' lrt x
 
+instance MimeC l u o op => MimeRender (CSV l 'Querying) (EncodingWith l [L ('UpdateOp op) I o u]) where
+  mimeRender (getLRT . proxyL -> lrt) = mimeRender' lrt . getEncoding
+
 mimeRender' :: L op (RC RT) o a -> [L op I o a] -> ByteString
 mimeRender' lrt xs =
   encodeWith @Record (defaultEncodeOptions {encUseCrLf = False}) $
@@ -231,3 +235,13 @@ instance MimeC l u o op => MimeRender (CSV l 'Updating) (EncodingWith l [L ('Upd
 
 instance MimeC l u o op => MimeRender (CSV l 'Deleting) (EncodingWith l [L DeleteOp I o '[]]) where
   mimeRender (getIndexOp . getLRT . proxyL -> lrt) = mimeRender' lrt . getEncoding
+
+--------------------- supported mime tipes ---------------------------
+
+type QueryL l = LU I (Index l) (Products l)
+
+type PutL l = LP I (Index l) (Products l)
+
+type UpdateL l = QueryL l
+
+type DeleteL l = LD I (Index l)

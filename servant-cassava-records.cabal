@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: daa8afea63344916a8dfac5768c6f04d00013900aae72b138e51e8f097c41ea6
+-- hash: f1fff9221130b001f68432d8e37d44f6565e38b8ac5df13a9c44b0beeb55e529
 
 name:           servant-cassava-records
 version:        0.1.0.0
@@ -39,9 +39,15 @@ library
     , do-list
     , generics-sop
     , hspec
+    , http-client
     , http-media
+    , network-simple
     , protolude
     , servant
+    , servant-client
+    , servant-server
+    , wai
+    , warp
   default-language: Haskell2010
 
 test-suite servant-cassava-records-test
@@ -59,8 +65,14 @@ test-suite servant-cassava-records-test
     , do-list
     , generics-sop
     , hspec
+    , http-client
     , http-media
+    , network-simple
     , protolude
     , servant
     , servant-cassava-records
+    , servant-client
+    , servant-server
+    , wai
+    , warp
   default-language: Haskell2010
