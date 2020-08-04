@@ -15,16 +15,14 @@
 -- (MimeUnrender(mimeUnrender))
 
 import Control.Concurrent.STM (TVar, modifyTVar, newTVarIO, readTVarIO)
-import Control.Lens hiding (Index)
 import qualified Data.Map as M
 import Generics.SOP
 import Generics.SOP.TH
-import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Protolude
 import Servant.API
-import Servant.API.ContentTypes (AllCTRender)
 import Servant.CSV.Records
 import Servant.Client
 import Servant.Server
@@ -42,14 +40,14 @@ instance GetLRT OneRecord where
 oneRecord :: Proxy (CSV OneRecord x)
 oneRecord = Proxy
 
-ciao43 :: EncodingWith OneRecord [LP I Int (Products OneRecord)]
-ciao43 = EncodingWith [L (I ("ciao", 43)) E]
+ciao43 :: EncodingWith OneRecord [PutL OneRecord]
+ciao43 = EncodingWith [lie ("ciao", 43)]
 
-ciaoT12_43 :: EncodingWith OneRecord [LU I Int (Products OneRecord)]
-ciaoT12_43 = fmap (T (I 12)) <$> ciao43
+ciaoT12_43 :: EncodingWith OneRecord [UpdateL OneRecord]
+ciaoT12_43 = EncodingWith [ti 12 $ lie ("ciao", 43)]
 
 deleteIndex12 :: EncodingWith x [LD I Int]
-deleteIndex12 = EncodingWith [T (I 12) E]
+deleteIndex12 = EncodingWith [tie 12]
 
 --------------------- TwoRecord ---------------------------
 
@@ -70,11 +68,13 @@ instance GetLRT TwoRecord where
 twoRecord :: Proxy (CSV TwoRecord x)
 twoRecord = Proxy
 
-ciao_43_72_1234 :: EncodingWith TwoRecord [LP I Int (Products TwoRecord)]
-ciao_43_72_1234 = EncodingWith [L (I ("ciao", 43)) $ L (I $ Foo 72 "1234") E]
+ciao_43_72_1234 :: EncodingWith TwoRecord [PutL TwoRecord]
+ciao_43_72_1234 = EncodingWith [li ("ciao", 43) $ lie (Foo 72 "1234")]
 
 ciao_T42_43_72_1234 :: EncodingWith TwoRecord [QueryL TwoRecord]
-ciao_T42_43_72_1234 = EncodingWith [T (I 42) $ L (I ("ciao", 43)) $ L (I $ Foo 72 "1234") E]
+ciao_T42_43_72_1234 = EncodingWith [ti 42 $ li ("ciao", 43) $ lie (Foo 72 "1234")]
+
+--------------------- servant API def ---------------------------
 
 type TestApi l =
   Get '[CSV l 'Querying] (EncodingWith l [QueryL l])
@@ -85,13 +85,13 @@ type TestApi l =
 testApi :: Proxy (TestApi l)
 testApi = Proxy
 
+-- a minimal state for rows 
 data RamState l = RamState
   { _ramState_state :: Map (Index l) (PutL l)
   , _ramState_nextID :: Index l
   }
 
-deriving instance (Show (Index l)) => Show (RamState l)
-
+deriving instance Show (Index l) => Show (RamState l)
 
 insertRecords :: (Ord (Index l), Enum (Index l)) => [PutL l] -> RamState l -> RamState l
 insertRecords xs s = foldl' insertRecord s xs
@@ -100,7 +100,7 @@ insertRecord :: (Ord (Index l), Enum (Index l)) => RamState l -> PutL l -> RamSt
 insertRecord (RamState state' index') x = RamState (M.insert index' x state') (succ index')
 
 updateRecords :: (Ord (Index l), Enum (Index l)) => [UpdateL l] -> RamState l -> RamState l
-updateRecords xs s = foldl' updateRecord s xs 
+updateRecords xs s = foldl' updateRecord s xs
 
 updateRecord :: Ord (Index l) => RamState l -> UpdateL l -> RamState l
 updateRecord (RamState state' index') (T (I i) x) = RamState (M.insert i x state') index'
@@ -120,19 +120,18 @@ server stateT = getA :<|> putS :<|> updateS :<|> deleteS
     putS (EncodingWith xs) = do
       liftIO $ atomically $ modifyTVar stateT (insertRecords xs)
       pure NoContent
-    updateS (EncodingWith xs) = do 
+    updateS (EncodingWith xs) = do
       liftIO $ atomically $ modifyTVar stateT (updateRecords xs)
       pure NoContent
-    deleteS (EncodingWith xs) = do 
+    deleteS (EncodingWith xs) = do
       liftIO $ atomically $ modifyTVar stateT (deleteRecords xs)
       pure NoContent
 
 deleteRecords :: Ord (Index l) => [LD I (Index l)] -> RamState l -> RamState l
-deleteRecords xs s = foldl' deleteRecord s xs 
+deleteRecords xs s = foldl' deleteRecord s xs
 
 deleteRecord :: Ord (Index l) => RamState l -> LD I (Index l) -> RamState l
-deleteRecord (RamState state' index') (T (I i) E)= RamState (M.delete i state') index'
-
+deleteRecord (RamState state' index') (T (I i) E) = RamState (M.delete i state') index'
 
 queryL :: GetLRT l => ClientM (EncodingWith l [QueryL l])
 
@@ -141,8 +140,7 @@ putL :: GetLRT l => EncodingWith l [PutL l] -> ClientM NoContent
 updateL :: GetLRT l => EncodingWith l [UpdateL l] -> ClientM NoContent
 
 deleteL :: GetLRT l => EncodingWith l [LD I (Index l)] -> ClientM NoContent
-
-queryL :<|> putL :<|> updateL :<|> deleteL= client testApi
+queryL :<|> putL :<|> updateL :<|> deleteL = client testApi
 
 application
   :: (Ord (Index l), Enum (Index l), GetLRT l, Show (Index l))
@@ -222,25 +220,27 @@ main = hspec $ do
       r <- testServer ciaoT12_43 $ putL ciao43 >> queryL
       shouldBe r $ EncodingWith
         do
-          [ T (I 12) $ L (I ("ciao", 43)) E
-            , T (I 13) $ L (I ("ciao", 43)) E
+          [ ti 12 $ lie ("ciao", 43)
+            , ti 13 $ lie ("ciao", 43)
             ]
     it "put a TwoRecord and get it back" $ do
       r <- testServer ciao_T42_43_72_1234 $ putL ciao_43_72_1234 >> queryL
       shouldBe r $ EncodingWith
         do
-          [ T (I 42) $ L (I ("ciao", 43)) $ L (I $ Foo 72 "1234") E
-            , T (I 43) $ L (I ("ciao", 43)) $ L (I $ Foo 72 "1234") E
+          [ ti 42 $ li ("ciao", 43) $ lie (Foo 72 "1234") 
+            , ti 43 $ li ("ciao", 43) $ lie (Foo 72 "1234") 
             ]
   describe "Updating API" $ do
     it "update a OneRecord and get it back" $ do
-      r <- testServer ciaoT12_43 $ 
-        updateL (EncodingWith @ OneRecord [T (I 12) $ L (I ("ciao", 47)) E]) >> queryL
+      r <-
+        testServer ciaoT12_43 $
+          updateL (EncodingWith @OneRecord [T (I 12) $ L (I ("ciao", 47)) E]) >> queryL
       shouldBe r $ EncodingWith
-        do [ T (I 12) $ L (I ("ciao", 47)) E ]
+        do [ti 12 $ lie ("ciao", 47)]
   describe "Delete API" $ do
     it "delete a OneRecord and get back null" $ do
-      r <- testServer ciaoT12_43 $ 
-        deleteL (EncodingWith @ OneRecord [T (I 12) E]) >> queryL
+      r <-
+        testServer ciaoT12_43 $
+          deleteL (EncodingWith @OneRecord [tie 12]) >> queryL
       shouldBe r $ EncodingWith
         do []

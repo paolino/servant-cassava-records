@@ -143,6 +143,17 @@ recordColumns (L (RC f) rest) = productColumns f <> recordColumns rest
 recordColumns (T f rest) = rtColumn f : recordColumns rest
 
 --------------   L handy composition operators -----------------------
+li :: (Show x, IsRecord x, Eq x) => x -> L op I o b -> L ('PutOp op) I o (x : b)
+li = L . I
+
+lie :: (Show x, IsRecord x, Eq x) => x -> L ('PutOp 'NoOp) I o '[x]
+lie x = li x E
+
+ti :: (Eq x, Show x) => x -> L op I x b -> L ('UpdateOp op) I x b
+ti  = T . I 
+
+tie :: (Eq x, Show x) => x -> L ('UpdateOp 'NoOp) I x '[]
+tie x = ti x E
 
 -- | L like operator grouping right
 (++:) :: (Eq a, IsRecord a, Show a) => f a -> L op f o b -> L ('PutOp op) f o (a : b)
