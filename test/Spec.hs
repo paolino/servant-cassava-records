@@ -178,9 +178,15 @@ main = hspec $ do
     it "renders putting one value" $ shouldBe
       do mimeRender (oneRecord @'Putting) ciao43
       do "name,age\nciao,43\n"
+    it "renders putting no values" $ shouldBe
+      do mimeRender (oneRecord @'Putting) (EncodingWith @ OneRecord ([] @ (PutL OneRecord)))
+      do "name,age\n"
     it "parses querying rows" $ shouldBe
       do mimeUnrender (oneRecord @'Querying) "index,name,age\n12,ciao,43\n"
       do Right ciaoT12_43
+    it "parses querying no rows" $ shouldBe
+      do mimeUnrender (oneRecord @'Querying) "index,name,age\n"
+      do Right (EncodingWith @ OneRecord ([] @ (QueryL OneRecord)))
     it "renders updating one row" $ shouldBe
       do mimeRender (oneRecord @'Updating) ciaoT12_43
       do "index,name,age\n12,ciao,43\n"
