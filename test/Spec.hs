@@ -27,6 +27,7 @@ import Servant.CSV.Records
 import Servant.Client
 import Servant.Server
 import Test.Hspec
+import Data.CSV.Product
 
 --------------------- OneRecord  ---------------------------
 

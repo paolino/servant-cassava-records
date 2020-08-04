@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 099b6cbde00064f8cb73920c4effaf8587ec3f62a8786f16fd04d982016c2d18
+-- hash: 99221ff1fed70cf53054acf45a854c3b64d24f20c542b11e40cdec3ffbf94557
 
 name:           servant-cassava-records
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Data.CSV.Product
       Servant.CSV.Records
   other-modules:
       Paths_servant_cassava_records
